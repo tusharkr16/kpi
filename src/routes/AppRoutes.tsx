@@ -5,6 +5,8 @@ import Login from "@/app/auth/pages/Login";
 import AppLayout from "@/layout/AppLayout";
 
 const DashboardOverview = lazy(() => import("@/app/dashboard/pages/DashboardOverview"));
+const VCDashboard       = lazy(() => import("@/app/vc/VCDashboard"));
+const ACSDashboard      = lazy(() => import("@/app/acs/ACSDashboard"));
 const KpiList = lazy(() => import("@/app/kpi/pages/KpiList"));
 const KpiDetail = lazy(() => import("@/app/kpi/pages/KpiDetail"));
 const KpiSelectPage = lazy(() => import("@/app/kpi-engine/pages/KpiSelectPage"));
@@ -23,6 +25,8 @@ const Loader = () => (
 
 const AppRoutes = () => {
   const { user } = useAuthStore();
+  const isVC  = user?.role?.type === "vc";
+  const isACS = user?.role?.type === "acs";
 
   if (!user) {
     return (
@@ -37,7 +41,7 @@ const AppRoutes = () => {
       <Routes>
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardOverview />} />
+          <Route path="dashboard" element={isVC ? <VCDashboard /> : isACS ? <ACSDashboard /> : <DashboardOverview />} />
           <Route path="kpis" element={<KpiList />} />
           <Route path="kpis/new" element={<KpiSelectPage />} />
           <Route path="kpis/submit/:code" element={<KpiSubmitPage />} />
