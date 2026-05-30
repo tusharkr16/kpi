@@ -1,4 +1,4 @@
-import { Bell, User, ChevronRight } from "lucide-react";
+import { Bell, User, ChevronRight, Plus } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { mockAlerts } from "@/mock/mock-data";
 import {
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   title: string;
@@ -18,7 +19,9 @@ interface Props {
 
 const TopBar = ({ title, breadcrumbs = [] }: Props) => {
   const { user, logoutUser } = useAuthStore();
+  const navigate = useNavigate();
   const unread = mockAlerts.filter((a) => a.severity === "high" || a.severity === "critical").length;
+  const isDirector = user?.role?.type === "director";
 
   return (
     <header className="h-14 border-b bg-white flex items-center px-6 gap-4 sticky top-0 z-30">
@@ -37,6 +40,14 @@ const TopBar = ({ title, breadcrumbs = [] }: Props) => {
           </div>
         )}
       </div>
+
+      {/* New Submission — director only */}
+      {isDirector && (
+        <Button size="sm" className="gap-1.5" onClick={() => navigate("/kpis/new")}>
+          <Plus className="w-4 h-4" />
+          New Submission
+        </Button>
+      )}
 
       {/* Notification bell */}
       <div className="relative">

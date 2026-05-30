@@ -7,13 +7,6 @@ import { Button } from "@/components/ui/button";
 import KpiCategoryBadge from "@/components/kpi/KpiCategoryBadge";
 import { toast } from "sonner";
 
-const priorityConfig = {
-  urgent: { label: "Urgent", className: "bg-red-100 text-red-700" },
-  high: { label: "High", className: "bg-orange-100 text-orange-700" },
-  medium: { label: "Medium", className: "bg-amber-100 text-amber-700" },
-  low: { label: "Low", className: "bg-blue-100 text-blue-700" },
-};
-
 const statusConfig = {
   open: { label: "Open", icon: AlertCircle, className: "text-orange-600" },
   replied: { label: "Replied", icon: Clock, className: "text-blue-600" },
@@ -76,7 +69,6 @@ const QueriesPage = () => {
           </div>
           <div className="flex-1 overflow-y-auto divide-y">
             {threads.map((thread) => {
-              const pc = priorityConfig[thread.priority];
               const sc = statusConfig[thread.status];
               const StatusIcon = sc.icon;
               const lastMsg = thread.messages[thread.messages.length - 1];
@@ -91,9 +83,6 @@ const QueriesPage = () => {
                 >
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <p className="text-sm font-medium line-clamp-1 flex-1">{thread.kpiTitle}</p>
-                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0", pc.className)}>
-                      {pc.label}
-                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{lastMsg.text}</p>
                   <div className="flex items-center justify-between">
@@ -117,9 +106,6 @@ const QueriesPage = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-semibold text-sm">{selected.kpiTitle}</p>
                 <KpiCategoryBadge category={selected.category} />
-                <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", priorityConfig[selected.priority].className)}>
-                  {priorityConfig[selected.priority].label} Priority
-                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Opened {formatTime(selected.createdAt)} · {selected.messages.length} messages

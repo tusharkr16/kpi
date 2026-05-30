@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   BarChart3,
   LayoutDashboard,
@@ -7,7 +7,6 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  CalendarClock,
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,20 +16,22 @@ import { mockQueryThreads } from "@/mock/mock-data";
 const openQueryCount = mockQueryThreads.filter((q) => q.status !== "resolved").length;
 
 const navItems = [
-  { label: "Overview", to: "/dashboard", icon: LayoutDashboard },
-  { label: "My KPI Submissions", to: "/kpis", icon: ClipboardList },
-  { label: "New Submission", to: "/kpis/new", icon: Plus },
-  { label: "Documents", to: "/documents", icon: FileText },
-  { label: "Queries", to: "/queries", icon: MessageSquare, badge: openQueryCount },
-  { label: "Deadlines", to: "/deadlines", icon: CalendarClock },
-  { label: "Analytics", to: "/analytics", icon: BarChart3 },
+  { label: "Overview",            to: "/dashboard",  icon: LayoutDashboard, end: true  },
+  { label: "My KPI Submissions",  to: "/kpis",       icon: ClipboardList,   end: true  },
+  { label: "Documents",           to: "/documents",  icon: FileText,        end: false },
+  { label: "Queries",             to: "/queries",    icon: MessageSquare,   end: false, badge: openQueryCount },
+  { label: "Analytics",           to: "/analytics",  icon: BarChart3,       end: false },
 ];
 
 const Sidebar = () => {
   const { user, logoutUser } = useAuthStore();
+  const navigate   = useNavigate();
+  const location   = useLocation();
+  const isDirector = user?.role?.type === "director";
+  const isOnNewSubmission = location.pathname.startsWith("/kpis/new") || location.pathname.startsWith("/kpis/submit");
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 bg-white border-r flex flex-col z-40">
+    <aside className="sticky top-0 self-start h-screen w-60 bg-white border-r flex flex-col z-40 shrink-0">
       {/* Logo */}
       <div className="px-5 py-4 border-b">
         <div className="flex items-center gap-2">
@@ -39,7 +40,7 @@ const Sidebar = () => {
           </div>
           <div>
             <p className="text-sm font-bold text-primary leading-tight">KPI Monitoring</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">PM-USHA Dashboard</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">KPI Dashboard</p>
           </div>
         </div>
       </div>
@@ -52,14 +53,31 @@ const Sidebar = () => {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map(({ label, to, icon: Icon, badge }) => (
+        {/* New Submission — director only */}
+        {isDirector && (
+          <button
+            onClick={() => navigate("/kpis/new")}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors mb-2",
+              isOnNewSubmission
+                ? "bg-primary text-white"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground border border-dashed border-primary/40 text-primary"
+            )}
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-left">New Submission</span>
+          </button>
+        )}
+
+        {navItems.map(({ label, to, icon: Icon, badge, end }) => (
           <NavLink
             key={to}
             to={to}
+            end={end}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive
+                isActive && !isOnNewSubmission
                   ? "bg-primary text-white"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )

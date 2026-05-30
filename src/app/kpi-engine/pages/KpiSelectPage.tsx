@@ -1,142 +1,156 @@
-import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import TopBar from "@/layout/TopBar";
-import { KPI_SCHEMAS, getKpisByCategory } from "../schema/kpi-schemas";
-import KpiCategoryBadge from "@/components/kpi/KpiCategoryBadge";
-import type { KpiCategory } from "../schema/kpi-engine-types";
-import { Search, ArrowRight, ClipboardList } from "lucide-react";
+import { getKpiSchema } from "../schema/kpi-schemas";
+import { ArrowRight, BookOpen, FlaskConical, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES: { value: KpiCategory | "all"; label: string }[] = [
-  { value: "all", label: "All KPIs" },
-  { value: "talent_acquisition", label: "Talent Acquisition" },
-  { value: "industry_partnership", label: "Industry Partnership" },
-  { value: "digital_transformation", label: "Digital Transformation" },
-  { value: "governance_reform", label: "Governance Reform" },
-  { value: "international", label: "International" },
-  { value: "faculty_development", label: "Faculty Development" },
-  { value: "enrollment_access", label: "Enrollment & Access" },
-  { value: "innovation_ecosystem", label: "Innovation Ecosystem" },
-  { value: "student_welfare", label: "Student Welfare" },
-  { value: "specialized_programs", label: "Specialized Programs" },
-  { value: "research", label: "Research" },
-  { value: "infrastructure", label: "Infrastructure" },
-  { value: "ai_systems", label: "AI Systems" },
-  { value: "alumni", label: "Alumni" },
+const KPI_LIST = [
+  {
+    code: "KPI_02",
+    number: 2,
+    title: "Professors of Practice",
+    subtitle: "Track industry professionals appointed as Professors of Practice",
+    tab: "Research & Professional Practice",
+    icon: FlaskConical,
+    color: "from-violet-500 to-violet-600",
+    bg: "bg-violet-50",
+    text: "text-violet-700",
+    border: "border-violet-200",
+    sections: ["Input Fields", "Process / Monitoring Fields", "Output Fields"],
+  },
+  {
+    code: "KPI_03",
+    number: 3,
+    title: "Mission Mode Faculty Recruitment",
+    subtitle: "Track rapid faculty hiring against vacancies under mission mode",
+    tab: "Teaching Learning & Resources",
+    icon: BookOpen,
+    color: "from-blue-500 to-blue-600",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-200",
+    sections: ["Input Fields", "Process / Monitoring Fields", "Output Fields"],
+  },
+  {
+    code: "KPI_05",
+    number: 5,
+    title: "Curriculum Updates in Emerging Areas",
+    subtitle: "Track programs updated with AI, ML, IoT, Blockchain, and other emerging tech",
+    tab: "Teaching Learning & Resources",
+    icon: BookOpen,
+    color: "from-blue-500 to-blue-600",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-200",
+    sections: ["Input Fields", "Process / Monitoring Fields", "Output Fields"],
+  },
+  {
+    code: "KPI_07",
+    number: 7,
+    title: "Apprenticeship Embedded Degree Programs",
+    subtitle: "Track degree programs with embedded apprenticeship components",
+    tab: "Graduation Outcome",
+    icon: GraduationCap,
+    color: "from-emerald-500 to-emerald-600",
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+    border: "border-emerald-200",
+    sections: ["Input Fields", "Process / Monitoring Fields", "Output Fields"],
+  },
 ];
 
 const KpiSelectPage = () => {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<KpiCategory | "all">("all");
-
-  const filtered = useMemo(() => {
-    const base =
-      activeCategory === "all" ? KPI_SCHEMAS : getKpisByCategory(activeCategory);
-    if (!search.trim()) return base;
-    const q = search.toLowerCase();
-    return base.filter(
-      (k) =>
-        k.title.toLowerCase().includes(q) ||
-        k.code.toLowerCase().includes(q) ||
-        k.description.toLowerCase().includes(q)
-    );
-  }, [search, activeCategory]);
 
   return (
     <div className="flex flex-col flex-1">
       <TopBar
-        title="Start New KPI Submission"
+        title="New KPI Submission"
         breadcrumbs={["KPI Management", "New Submission"]}
       />
 
-      <div className="p-6 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Select a KPI to Fill</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Choose one of the 28 PM-USHA KPIs to begin your submission
-            </p>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {filtered.length} of {KPI_SCHEMAS.length} KPIs
-          </div>
+      <div className="p-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold">Select a KPI</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Choose a KPI to fill and submit your data
+          </p>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search KPIs..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
-
-        {/* Category Filter */}
-        <div className="flex flex-wrap gap-2">
-          {CATEGORIES.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setActiveCategory(value)}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
-                activeCategory === value
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white text-muted-foreground border-border hover:border-primary hover:text-primary"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* KPI Cards Grid */}
-        {filtered.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No KPIs match your search.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((kpi, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {KPI_LIST.map((kpi) => {
+            const schema = getKpiSchema(kpi.code);
+            const Icon = kpi.icon;
+            return (
               <button
                 key={kpi.code}
                 onClick={() => navigate(`/kpis/submit/${kpi.code}`)}
-                className="group text-left bg-white border rounded-xl p-5 hover:border-primary hover:shadow-sm transition-all"
+                className={cn(
+                  "group text-left bg-white border-2 rounded-2xl p-0 overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5",
+                  kpi.border
+                )}
               >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                    {String(i + 1).padStart(2, "0")}
+                {/* Gradient top strip */}
+                <div className={cn("h-1.5 w-full bg-gradient-to-r", kpi.color)} />
+
+                <div className="p-5">
+                  {/* Header row */}
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br shrink-0", kpi.color)}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", kpi.bg, kpi.text)}>
+                            KPI {kpi.number}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{kpi.tab}</span>
+                        </div>
+                        <h3 className={cn("text-sm font-bold leading-snug group-hover:transition-colors", `group-hover:${kpi.text}`)}>
+                          {kpi.title}
+                        </h3>
+                      </div>
+                    </div>
+                    <div className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0",
+                      kpi.bg
+                    )}>
+                      <ArrowRight className={cn("w-4 h-4", kpi.text)} />
+                    </div>
                   </div>
-                  <span className="text-xs text-muted-foreground font-mono">{kpi.code}</span>
-                </div>
-                <h3 className="text-sm font-semibold text-foreground leading-snug mb-1.5 group-hover:text-primary transition-colors">
-                  {kpi.title}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-2">
-                  {kpi.description}
-                </p>
-                <div className="flex items-center justify-between">
-                  <KpiCategoryBadge category={kpi.category} />
-                  <span className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                    Start <ArrowRight className="w-3 h-3" />
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
-                  <span>{kpi.sections.length} sections</span>
-                  <span>·</span>
-                  <span>{kpi.fields.length} fields</span>
-                  <span>·</span>
-                  <span className="capitalize">{kpi.frequency}</span>
+
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                    {kpi.subtitle}
+                  </p>
+
+                  {/* Stepper preview */}
+                  <div className="flex items-center gap-1.5">
+                    {kpi.sections.map((section, i) => (
+                      <div key={i} className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <div className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0", kpi.bg, kpi.text)}>
+                            {i + 1}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground truncate">{section}</span>
+                        </div>
+                        {i < kpi.sections.length - 1 && (
+                          <div className="w-4 h-px bg-border shrink-0" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>{schema?.fields.length ?? 0} fields · {schema?.documents.length ?? 0} documents required</span>
+                    <span className="capitalize font-medium">{schema?.frequency}</span>
+                  </div>
                 </div>
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

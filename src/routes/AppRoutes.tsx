@@ -16,7 +16,7 @@ const DeadlinesPage = lazy(() => import("@/app/deadlines/pages/DeadlinesPage"));
 const SettingsPage = lazy(() => import("@/app/settings/pages/SettingsPage"));
 
 const Loader = () => (
-  <div className="flex-1 flex items-center justify-center min-h-screen ml-60">
+  <div className="flex-1 flex items-center justify-center min-h-screen">
     <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
 );

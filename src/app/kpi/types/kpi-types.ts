@@ -9,8 +9,19 @@ export type KpiStatus =
   | "rejected"
   | "query_raised";
 
+export type KpiTab =
+  | "teaching"
+  | "research"
+  | "graduation"
+  | "outreach"
+  | "perception"
+  | "governance"
+  | "description";
+
 export interface IKpi {
   _id: string;
+  kpiNumber: number;
+  tab: KpiTab;
   title: string;
   category: KpiCategory;
   status: KpiStatus;

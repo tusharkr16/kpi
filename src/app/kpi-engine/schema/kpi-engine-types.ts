@@ -9,7 +9,8 @@ export type FieldType =
   | "date"
   | "textarea"
   | "calculated"
-  | "readonly";
+  | "readonly"
+  | "file";
 
 export type KpiCategory =
   | "talent_acquisition"

@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import type { IKpiFieldSchema } from "../../schema/kpi-engine-types";
 import { evaluateFormula } from "../../engine/formula-evaluator";
 import { cn } from "@/lib/utils";
+import { Upload, X, FileText, CheckCircle2 } from "lucide-react";
 
 interface Props {
   field: IKpiFieldSchema;
@@ -37,6 +39,12 @@ export const KpiFieldRenderer = ({ field, value, values, onChange, disabled }: P
         </div>
         {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
       </div>
+    );
+  }
+
+  if (field.type === "file") {
+    return (
+      <FileUploadField field={field} value={value} onChange={onChange} disabled={disabled} />
     );
   }
 
@@ -177,3 +185,95 @@ const Label = ({ field }: { field: IKpiFieldSchema }) => (
     {field.required && <span className="text-destructive">*</span>}
   </label>
 );
+
+interface FileUploadProps {
+  field: IKpiFieldSchema;
+  value: unknown;
+  onChange: (fieldId: string, value: unknown) => void;
+  disabled?: boolean;
+}
+
+interface UploadedFile { name: string; size: string; }
+
+const FileUploadField = ({ field, value, onChange, disabled }: FileUploadProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const uploaded = value as UploadedFile | null | undefined;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const sizeKB = file.size / 1024;
+    const sizeStr = sizeKB >= 1024
+      ? `${(sizeKB / 1024).toFixed(1)} MB`
+      : `${Math.round(sizeKB)} KB`;
+    onChange(field.fieldId, { name: file.name, size: sizeStr });
+    // reset so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const handleRemove = () => {
+    onChange(field.fieldId, null);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label field={field} />
+
+      {uploaded ? (
+        /* Uploaded state */
+        <div className="flex items-center gap-3 border border-green-200 bg-green-50 rounded-xl px-4 py-3">
+          <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+            <FileText className="w-4 h-4 text-green-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-green-800 truncate">{uploaded.name}</p>
+            <p className="text-xs text-green-600">{uploaded.size}</p>
+          </div>
+          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+          {!disabled && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="w-6 h-6 rounded-full bg-green-200 hover:bg-green-300 flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="w-3 h-3 text-green-700" />
+            </button>
+          )}
+        </div>
+      ) : (
+        /* Drop zone / upload button */
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => inputRef.current?.click()}
+          className={cn(
+            "w-full border-2 border-dashed rounded-xl px-4 py-5 flex flex-col items-center gap-2 transition-colors",
+            disabled
+              ? "border-muted bg-muted/30 cursor-not-allowed opacity-60"
+              : "border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer group"
+          )}
+        >
+          <div className="w-10 h-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+            <Upload className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
+              Click to upload
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">PDF, DOC, DOCX · Max 5MB</p>
+          </div>
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
+    </div>
+  );
+};
