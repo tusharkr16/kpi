@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import type { ILoginForm } from "../types/auth-types";
@@ -44,6 +45,7 @@ export const STATIC_USERS = [
 
 const useLogin = () => {
   const { setUser } = useAuthStore();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<ILoginForm>({ email: "", password: "" });
   const [isPending, setIsPending] = useState(false);
 
@@ -66,6 +68,11 @@ const useLogin = () => {
       setUser(userInfo);
       toast.success(`Welcome, ${userInfo.name}!`);
       setIsPending(false);
+      // Explicit redirect with correct section for role
+      const roleType = userInfo.role.type;
+      if (roleType === "vc")  navigate("/dashboard?section=executive", { replace: true });
+      else if (roleType === "acs") navigate("/dashboard?section=state", { replace: true });
+      else navigate("/dashboard", { replace: true });
     }, 500);
   };
 

@@ -4,14 +4,14 @@ import UniversityHeader from "@/components/common/UniversityHeader";
 
 const AppLayout = () => {
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col">
-      {/* Full-width university header */}
+    <div className="h-screen flex flex-col overflow-hidden bg-muted/30">
+      {/* Full-width university header — fixed height */}
       <UniversityHeader />
 
-      {/* Sidebar + content below header */}
-      <div className="flex flex-1">
+      {/* Sidebar + content — fills remaining height, no overflow on this row */}
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="flex-1 flex flex-col overflow-y-auto">
           <Outlet />
         </div>
       </div>

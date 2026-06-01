@@ -13,9 +13,16 @@ import {
   TrendingUp, AlertTriangle, CheckCircle2,
   FileText, Users, BarChart3, Bell, ShieldCheck, Download,
   ChevronRight, Star, Building2, Zap, Eye,
+  BookOpen, FlaskConical, GraduationCap, Landmark, ScrollText,
+  Search, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useKpiSubmissionStore } from "@/store/kpi-submission-store";
+import { getKpiSchema } from "@/app/kpi-engine/schema/kpi-schemas";
+import { isFieldVisible } from "@/app/kpi-engine/engine/dependency-resolver";
+import type { KpiTab, KpiStatus } from "@/app/kpi/types/kpi-types";
+import type { LucideIcon } from "lucide-react";
 
 /* ── Mock peer universities ─────────────────────────────────────────────── */
 const PEERS = [
@@ -65,7 +72,28 @@ const DIRECTIVES = [
   { id: "d2", title: "Performance Reminder: Research Output lagging",       kpi: "Multiple", severity: "high", draft: "Research & Professional Practice category shows sustained underperformance. Department heads are directed to submit improvement plans within 14 days." },
 ];
 
-type Section = "executive" | "benchmarking" | "approval" | "alerts" | "vault" | "communication" | "reports";
+type Section = "executive" | "benchmarking" | "approval" | "alerts" | "vault" | "communication" | "reports" | "dataviewer";
+
+interface DvTabConfig { key: KpiTab; label: string; icon: LucideIcon; gradient: string; pill: string; kpiNumBg: string; activeText: string; activeBg: string; ring: string; }
+const DV_TABS: DvTabConfig[] = [
+  { key: "teaching",    label: "Teaching Learning & Resources",    icon: BookOpen,      gradient: "from-blue-500 to-blue-600",     pill: "bg-blue-100 text-blue-700",     kpiNumBg: "bg-blue-100 text-blue-700",     activeText: "text-blue-700",   activeBg: "bg-blue-50 border-blue-200",     ring: "ring-blue-300"    },
+  { key: "research",    label: "Research & Professional Practice", icon: FlaskConical,  gradient: "from-violet-500 to-violet-600", pill: "bg-violet-100 text-violet-700", kpiNumBg: "bg-violet-100 text-violet-700", activeText: "text-violet-700", activeBg: "bg-violet-50 border-violet-200", ring: "ring-violet-300"  },
+  { key: "graduation",  label: "Graduation Outcome",               icon: GraduationCap, gradient: "from-emerald-500 to-emerald-600", pill: "bg-emerald-100 text-emerald-700", kpiNumBg: "bg-emerald-100 text-emerald-700", activeText: "text-emerald-700", activeBg: "bg-emerald-50 border-emerald-200", ring: "ring-emerald-300" },
+  { key: "outreach",    label: "Outreach & Inclusivity",           icon: Users,         gradient: "from-orange-500 to-orange-600", pill: "bg-orange-100 text-orange-700", kpiNumBg: "bg-orange-100 text-orange-700", activeText: "text-orange-700", activeBg: "bg-orange-50 border-orange-200", ring: "ring-orange-300"  },
+  { key: "perception",  label: "Perception",                       icon: Eye,           gradient: "from-pink-500 to-pink-600",     pill: "bg-pink-100 text-pink-700",     kpiNumBg: "bg-pink-100 text-pink-700",     activeText: "text-pink-700",   activeBg: "bg-pink-50 border-pink-200",     ring: "ring-pink-300"    },
+  { key: "governance",  label: "Governance & Digital",             icon: Landmark,      gradient: "from-teal-500 to-teal-600",     pill: "bg-teal-100 text-teal-700",     kpiNumBg: "bg-teal-100 text-teal-700",     activeText: "text-teal-700",   activeBg: "bg-teal-50 border-teal-200",     ring: "ring-teal-300"    },
+  { key: "description", label: "Description",                      icon: ScrollText,    gradient: "from-amber-500 to-amber-600",   pill: "bg-amber-100 text-amber-700",   kpiNumBg: "bg-amber-100 text-amber-700",   activeText: "text-amber-700",  activeBg: "bg-amber-50 border-amber-200",   ring: "ring-amber-300"   },
+];
+
+const renderVal = (value: unknown, fieldType: string, options?: { label: string; value: string }[]): string => {
+  if (value === null || value === undefined || value === "") return "—";
+  if (Array.isArray(value)) return options ? value.map((v) => options.find((o) => o.value === v)?.label ?? String(v)).join(", ") : value.join(", ");
+  if (typeof value === "object" && (value as { name?: string }).name) return `${(value as { name: string; size: string }).name} (${(value as { name: string; size: string }).size})`;
+  if (fieldType === "currency") return `₹ ${Number(value).toLocaleString("en-IN")}`;
+  if (fieldType === "percentage") return `${value}%`;
+  if (options) return options.find((o) => o.value === String(value))?.label ?? String(value);
+  return String(value);
+};
 
 
 const healthColor = (v: number) =>
@@ -81,6 +109,14 @@ export default function VCDashboard() {
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
   const [approvedDocs, setApprovedDocs] = useState<Set<string>>(new Set());
   const [sentDirectives, setSentDirectives] = useState<Set<string>>(new Set());
+
+  // Data Viewer state
+  const [dvTab, setDvTab]         = useState<KpiTab>("teaching");
+  const [dvSearch, setDvSearch]   = useState("");
+  const [dvStatusFilter, setDvStatusFilter] = useState<KpiStatus | "all">("all");
+  const [dvSelectedKpi, setDvSelectedKpi]   = useState<string | null>(null);
+  const [vcApproved, setVcApproved]         = useState<Set<string>>(new Set());
+  const { getSubmission }                   = useKpiSubmissionStore();
 
   const overallScore = 62;
   const totalKpis = mockKpis.length;
@@ -474,6 +510,271 @@ export default function VCDashboard() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+            </div>
+          )}
+
+          {/* ── Data Viewer ───────────────────────────────────────── */}
+          {active === "dataviewer" && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-base font-bold">Data Viewer</h2>
+                <p className="text-xs text-muted-foreground">All KPI submissions from Director &amp; Coordinator — review and approve</p>
+              </div>
+
+              {/* Tab cards */}
+              <div className="grid grid-cols-7 gap-3">
+                {DV_TABS.map((tab) => {
+                  const kpis = mockKpis.filter((k) => k.tab === tab.key);
+                  const isActive = dvTab === tab.key;
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => { setDvTab(tab.key); setDvSearch(""); setDvStatusFilter("all"); setDvSelectedKpi(null); }}
+                      className={cn(
+                        "relative flex flex-col items-center gap-2 rounded-2xl px-3 py-4 text-center transition-all duration-200",
+                        isActive
+                          ? `bg-gradient-to-br ${tab.gradient} text-white shadow-lg scale-105 ring-4 ring-white ring-offset-2`
+                          : "bg-white border hover:border-transparent hover:shadow-md text-foreground"
+                      )}
+                    >
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", isActive ? "bg-white/20" : `bg-gradient-to-br ${tab.gradient}`)}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <p className={cn("text-[11px] font-semibold leading-tight", isActive ? "text-white" : "text-foreground")}>{tab.label}</p>
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", isActive ? "bg-white/25 text-white" : tab.pill)}>
+                        {kpis.length} KPIs
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* KPI table */}
+              {!dvSelectedKpi ? (
+                <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
+                  {/* Colored header bar */}
+                  <div className={cn("px-5 py-3 flex items-center justify-between bg-gradient-to-r", DV_TABS.find((t) => t.key === dvTab)?.gradient)}>
+                    <div className="flex items-center gap-3">
+                      {(() => { const T = DV_TABS.find((t) => t.key === dvTab)!; return <T.icon className="w-4 h-4 text-white" />; })()}
+                      <span className="text-sm font-semibold text-white">{DV_TABS.find((t) => t.key === dvTab)?.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60" />
+                        <input type="text" placeholder="Search..." value={dvSearch}
+                          onChange={(e) => setDvSearch(e.target.value)}
+                          className="pl-8 pr-3 py-1.5 text-xs bg-white/20 text-white placeholder:text-white/60 border border-white/30 rounded-lg outline-none focus:bg-white/30 w-40" />
+                      </div>
+                      <select value={dvStatusFilter}
+                        onChange={(e) => setDvStatusFilter(e.target.value as KpiStatus | "all")}
+                        className="text-xs bg-white/20 text-white border border-white/30 rounded-lg px-2 py-1.5 outline-none">
+                        <option value="all" className="text-foreground bg-white">All Status</option>
+                        <option value="not_started" className="text-foreground bg-white">Not Started</option>
+                        <option value="draft" className="text-foreground bg-white">Draft</option>
+                        <option value="submitted" className="text-foreground bg-white">Submitted</option>
+                        <option value="approved" className="text-foreground bg-white">Approved</option>
+                        <option value="rejected" className="text-foreground bg-white">Rejected</option>
+                        <option value="query_raised" className="text-foreground bg-white">Query Raised</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/20">
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground w-20">KPI No.</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">KPI Title</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Progress</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Docs</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Due Date</th>
+                        <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mockKpis
+                        .filter((k) => k.tab === dvTab)
+                        .filter((k) => dvStatusFilter === "all" || k.status === dvStatusFilter)
+                        .filter((k) => !dvSearch.trim() || k.title.toLowerCase().includes(dvSearch.toLowerCase()) || String(k.kpiNumber).includes(dvSearch))
+                        .map((kpi) => {
+                          const cfg = DV_TABS.find((t) => t.key === dvTab)!;
+                          const isVcApproved = vcApproved.has(kpi._id);
+                          return (
+                            <tr key={kpi._id}
+                              className={cn("border-b last:border-0 hover:bg-muted/20 transition-colors cursor-pointer",
+                                kpi.status === "rejected" && "bg-red-50/40",
+                                kpi.status === "query_raised" && "bg-orange-50/40"
+                              )}
+                              onClick={() => setDvSelectedKpi(kpi._id)}
+                            >
+                              <td className="px-5 py-3.5">
+                                <span className={cn("inline-flex items-center justify-center w-10 h-7 rounded-md text-xs font-bold", cfg.kpiNumBg)}>
+                                  {kpi.kpiNumber}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 max-w-xs">
+                                <p className="font-medium text-sm leading-snug">{kpi.title}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{kpi.monthYear}</p>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                {isVcApproved
+                                  ? <span className="flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2.5 py-0.5 rounded-full font-semibold w-fit"><CheckCircle2 className="w-3 h-3" />VC Approved</span>
+                                  : <KpiStatusBadge status={kpi.status} />
+                                }
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-1.5 w-20 bg-muted rounded-full overflow-hidden">
+                                    <div className={cn("h-full rounded-full", kpi.completionPercent === 100 ? "bg-green-500" : kpi.completionPercent >= 60 ? "bg-primary" : "bg-amber-400")}
+                                      style={{ width: `${kpi.completionPercent}%` }} />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground tabular-nums">{kpi.completionPercent}%</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <span className={cn("text-xs font-semibold tabular-nums", kpi.documentsUploaded < kpi.documentsRequired ? "text-amber-600" : "text-green-600")}>
+                                  {kpi.documentsUploaded}/{kpi.documentsRequired}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-xs text-muted-foreground tabular-nums">{kpi.dueDate}</td>
+                              <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => setDvSelectedKpi(kpi._id)}
+                                  className={cn("text-xs font-semibold px-3 py-1.5 rounded-md transition-colors", cfg.pill, "hover:opacity-80")}>
+                                  Review
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                /* ── KPI Detail / Summary view ─── */
+                (() => {
+                  const kpi = mockKpis.find((k) => k._id === dvSelectedKpi)!;
+                  const kpiCode = `KPI_${String(kpi.kpiNumber).padStart(2, "0")}`;
+                  const schema = getKpiSchema(kpiCode);
+                  const submission = getSubmission(kpiCode);
+                  const sortedSections = schema ? [...schema.sections].sort((a, b) => a.order - b.order) : [];
+                  const displayValues = submission?.values ?? {};
+                  const isVcApproved = vcApproved.has(kpi._id);
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-center justify-between">
+                        <button onClick={() => setDvSelectedKpi(null)}
+                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors">
+                          ← Back to KPI List
+                        </button>
+                        <div className="flex items-center gap-3">
+                          <KpiStatusBadge status={kpi.status} />
+                          {isVcApproved
+                            ? <span className="flex items-center gap-1.5 text-sm font-semibold text-green-700 bg-green-100 px-3 py-1.5 rounded-xl">
+                                <Check className="w-4 h-4 stroke-[3]" /> VC Approved
+                              </span>
+                            : (kpi.status === "submitted" || submission) && (
+                              <Button
+                                className="gap-2 bg-green-600 hover:bg-green-700"
+                                onClick={() => {
+                                  setVcApproved((p) => new Set([...p, kpi._id]));
+                                  toast.success(`KPI ${kpi.kpiNumber} — ${kpi.title} approved by VC!`);
+                                }}
+                              >
+                                <CheckCircle2 className="w-4 h-4" /> Approve KPI
+                              </Button>
+                            )
+                          }
+                        </div>
+                      </div>
+
+                      {/* KPI info card */}
+                      <div className="bg-white border rounded-2xl p-5">
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", DV_TABS.find((t) => t.key === dvTab)?.pill)}>KPI {kpi.kpiNumber}</span>
+                              <span className="text-xs text-muted-foreground font-mono">{kpiCode}</span>
+                            </div>
+                            <h3 className="text-base font-bold">{kpi.title}</h3>
+                            <p className="text-sm text-muted-foreground mt-0.5">{kpi.monthYear} · Due {kpi.dueDate}</p>
+                          </div>
+                          <div className="text-right text-xs text-muted-foreground">
+                            <p>Progress: <span className="font-semibold text-foreground">{kpi.completionPercent}%</span></p>
+                            <p>Docs: <span className={cn("font-semibold", kpi.documentsUploaded < kpi.documentsRequired ? "text-amber-600" : "text-green-600")}>{kpi.documentsUploaded}/{kpi.documentsRequired}</span></p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Submission data or no-data message */}
+                      {schema && (submission || Object.keys(displayValues).length > 0) ? (
+                        sortedSections.map((section) => {
+                          const fields = schema.fields
+                            .filter((f) => f.section === section.id && isFieldVisible(f.dependsOn, displayValues))
+                            .sort((a, b) => a.order - b.order);
+                          return (
+                            <div key={section.id} className="bg-white border rounded-2xl overflow-hidden">
+                              <div className="px-5 py-3 bg-gradient-to-r from-primary/5 to-transparent border-b flex items-center gap-3">
+                                <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">{section.order}</div>
+                                <div>
+                                  <h4 className="text-sm font-bold">{section.title}</h4>
+                                  {section.description && <p className="text-xs text-muted-foreground">{section.description}</p>}
+                                </div>
+                                <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />
+                              </div>
+                              <div className="divide-y">
+                                {fields.map((field) => {
+                                  const val = displayValues[field.fieldId];
+                                  const isEmpty = val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0);
+                                  return (
+                                    <div key={field.fieldId} className="grid grid-cols-[1fr_1.5fr] gap-4 px-5 py-3 hover:bg-muted/10">
+                                      <p className="text-xs font-medium text-muted-foreground">{field.label}{field.required && <span className="text-destructive ml-0.5">*</span>}</p>
+                                      <div className="flex items-center gap-2">
+                                        {isEmpty
+                                          ? <span className="text-xs text-muted-foreground/50 italic">Not filled</span>
+                                          : <span className={cn("text-sm font-medium", field.type === "calculated" ? "text-primary" : "text-foreground")}>{renderVal(val, field.type, field.options)}</span>
+                                        }
+                                        {field.type === "calculated" && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">auto</span>}
+                                        {field.type === "file" && !isEmpty && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5"><CheckCircle2 className="w-3 h-3" />uploaded</span>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {fields.length === 0 && <div className="px-5 py-4 text-xs text-muted-foreground italic">No fields in this section.</div>}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="bg-white border rounded-2xl p-10 flex flex-col items-center gap-3 text-muted-foreground">
+                          <FileText className="w-10 h-10 opacity-20" />
+                          <p className="text-sm font-medium">No form data submitted yet</p>
+                          <p className="text-xs">The coordinator/director has not filled this KPI through the submission engine.</p>
+                        </div>
+                      )}
+
+                      {/* Approve button at bottom */}
+                      {!isVcApproved && (kpi.status === "submitted" || submission) && (
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            size="lg"
+                            className="gap-2 bg-green-600 hover:bg-green-700 px-8"
+                            onClick={() => {
+                              setVcApproved((p) => new Set([...p, kpi._id]));
+                              toast.success(`KPI ${kpi.kpiNumber} approved by VC!`);
+                              setDvSelectedKpi(null);
+                            }}
+                          >
+                            <CheckCircle2 className="w-5 h-5" /> Approve & Close
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              )}
             </div>
           )}
 

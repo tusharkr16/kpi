@@ -6,17 +6,20 @@ import { cn } from "@/lib/utils";
 import KpiStatusBadge from "@/components/kpi/KpiStatusBadge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, LineChart, Line,
+  ResponsiveContainer, LineChart, Line, Cell,
 } from "recharts";
 import {
   BarChart3, Search, TrendingUp, TrendingDown,
-  ChevronRight, Building2, AlertTriangle, CheckCircle2,
+  Building2, AlertTriangle, CheckCircle2,
   Filter, ArrowUpDown, FileText, MessageSquare, Eye,
-  BookOpen, FlaskConical, GraduationCap, Users, Landmark, ScrollText,
+  BookOpen, FlaskConical, GraduationCap, Users, Landmark, ScrollText, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import type { KpiTab } from "@/app/kpi/types/kpi-types";
+import type { KpiTab, KpiStatus } from "@/app/kpi/types/kpi-types";
+import { useKpiSubmissionStore } from "@/store/kpi-submission-store";
+import { getKpiSchema } from "@/app/kpi-engine/schema/kpi-schemas";
+import { isFieldVisible } from "@/app/kpi-engine/engine/dependency-resolver";
 
 /* ── Mock SPU data (all universities in Maharashtra) ────────────────────── */
 const SPUS = [
@@ -81,11 +84,25 @@ export default function ACSDashboard() {
   const [sortBy, setSortBy]           = useState<"score" | "name">("score");
 
   // Data Viewer state
-  const [dvUniversity, setDvUniversity] = useState(SPUS[0].id);
-  const [dvTab, setDvTab]               = useState<KpiTab>("teaching");
-  const [dvSearch, setDvSearch]         = useState("");
-  const [remarkMap, setRemarkMap]       = useState<Record<string, string>>({});
-  const [savedRemarks, setSavedRemarks] = useState<Set<string>>(new Set());
+  const [dvUniversity, setDvUniversity]   = useState(SPUS[0].id);
+  const [dvTab, setDvTab]                 = useState<KpiTab>("teaching");
+  const [dvSearch, setDvSearch]           = useState("");
+  const [dvStatusFilter] = useState<KpiStatus | "all">("all");
+  const [dvSelectedKpi, setDvSelectedKpi] = useState<string | null>(null);
+  const [acsApproved, setAcsApproved]     = useState<Set<string>>(new Set());
+  const [remarkMap, setRemarkMap]         = useState<Record<string, string>>({});
+  const [savedRemarks, setSavedRemarks]   = useState<Set<string>>(new Set());
+  const { getSubmission }                 = useKpiSubmissionStore();
+
+  const renderVal = (value: unknown, fieldType: string, options?: { label: string; value: string }[]): string => {
+    if (value === null || value === undefined || value === "") return "—";
+    if (Array.isArray(value)) return options ? value.map((v) => options.find((o) => o.value === v)?.label ?? String(v)).join(", ") : value.join(", ");
+    if (typeof value === "object" && (value as { name?: string }).name) return `${(value as { name: string; size: string }).name} (${(value as { name: string; size: string }).size})`;
+    if (fieldType === "currency") return `₹ ${Number(value).toLocaleString("en-IN")}`;
+    if (fieldType === "percentage") return `${value}%`;
+    if (options) return options.find((o) => o.value === String(value))?.label ?? String(value);
+    return String(value);
+  };
 
   const filtered = SPUS
     .filter((s) => regionFilter === "All" || s.region === regionFilter)
@@ -120,18 +137,20 @@ export default function ACSDashboard() {
               {/* Summary stat row */}
               <div className="grid grid-cols-4 gap-4">
                 {[
-                  { label: "State Avg Score",   value: `${stateAvg}/100`, sub: "Composite across all KPIs",    color: "text-primary",   icon: BarChart3    },
-                  { label: "Total SPUs",         value: SPUS.length,       sub: "Universities tracked",          color: "text-blue-700",  icon: Building2    },
-                  { label: "High Performers",    value: SPUS.filter((s) => s.score >= 70).length, sub: "Score ≥ 70", color: "text-green-700", icon: CheckCircle2 },
-                  { label: "At Risk",            value: SPUS.filter((s) => s.score < 50).length,  sub: "Score < 50", color: "text-red-700",   icon: AlertTriangle },
-                ].map(({ label, value, sub, color, icon: Icon }) => (
-                  <div key={label} className="bg-white border rounded-2xl p-4">
+                  { label: "State Avg Score",  value: `${stateAvg}/100`, sub: "Composite across all KPIs", icon: BarChart3,     gradient: "from-blue-500 to-blue-600"    },
+                  { label: "Total SPUs",        value: SPUS.length,       sub: "Universities tracked",       icon: Building2,    gradient: "from-violet-500 to-violet-600" },
+                  { label: "High Performers",   value: SPUS.filter((s) => s.score >= 70).length, sub: "Score ≥ 70", icon: CheckCircle2, gradient: "from-emerald-500 to-emerald-600" },
+                  { label: "At Risk",           value: SPUS.filter((s) => s.score < 50).length,  sub: "Score < 50", icon: AlertTriangle, gradient: "from-red-500 to-red-600" },
+                ].map(({ label, value, sub, gradient, icon: Icon }) => (
+                  <div key={label} className={cn("rounded-2xl p-4 bg-gradient-to-br text-white", gradient)}>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-muted-foreground font-medium">{label}</p>
-                      <Icon className={cn("w-4 h-4", color)} />
+                      <p className="text-xs text-white/80 font-medium">{label}</p>
+                      <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                        <Icon className="w-4 h-4 text-white" />
+                      </div>
                     </div>
-                    <p className={cn("text-2xl font-extrabold tabular-nums", color)}>{value}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+                    <p className="text-3xl font-extrabold tabular-nums text-white">{value}</p>
+                    <p className="text-xs text-white/70 mt-1">{sub}</p>
                   </div>
                 ))}
               </div>
@@ -150,7 +169,7 @@ export default function ACSDashboard() {
                     <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v) => [`${v}%`, "Avg Score"]} />
                     <Bar dataKey="avg" radius={[6, 6, 0, 0]}>
                       {kpiAvgs.map((_entry, i) => (
-                        <rect key={i} fill={["#3b82f6","#8b5cf6","#10b981","#f97316","#ec4899","#14b8a6"][i]} />
+                        <Cell key={i} fill={["#3b82f6","#8b5cf6","#10b981","#f97316","#ec4899","#14b8a6"][i]} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -301,47 +320,64 @@ export default function ACSDashboard() {
               </div>
 
               {!selectedSpu ? (
-                /* University cards grid */
-                <div className="grid grid-cols-2 gap-4">
-                  {filtered.map((spu) => (
-                    <button key={spu.id} onClick={() => setSelectedSpu(spu)}
-                      className="bg-white border rounded-2xl p-5 text-left hover:shadow-md hover:border-primary/40 transition-all group">
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{spu.region}</span>
-                            <span className="text-[10px] font-semibold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{spu.size}</span>
-                          </div>
-                          <p className="text-sm font-bold group-hover:text-primary transition-colors">{spu.name}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className={cn("text-2xl font-extrabold tabular-nums", scoreColor(spu.score))}>{spu.score}</p>
-                          <p className="text-[10px] text-muted-foreground">/100</p>
-                          <p className={cn("text-xs font-semibold flex items-center justify-end gap-0.5 mt-0.5",
-                            spu.trend.startsWith("+") ? "text-green-600" : "text-red-500")}>
-                            {spu.trend.startsWith("+") ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                            {spu.trend}
-                          </p>
-                        </div>
-                      </div>
-                      {/* Mini KPI bars */}
-                      <div className="space-y-1.5">
-                        {KPI_CATEGORIES.slice(0, 4).map((k) => (
-                          <div key={k} className="flex items-center gap-2">
-                            <span className="text-[9px] text-muted-foreground w-16 truncate capitalize">{k}</span>
-                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className={cn("h-full rounded-full", scoreBg(spu.kpis[k]))} style={{ width: `${spu.kpis[k]}%` }} />
+                /* University table */
+                <div className="bg-white border rounded-2xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/20">
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground">University</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Region</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Size</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Overall Score</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Trend</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Submitted</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Approved</th>
+                        <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((spu) => (
+                        <tr key={spu.id}
+                          onClick={() => setSelectedSpu(spu)}
+                          className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-colors group"
+                        >
+                          <td className="px-5 py-3.5">
+                            <p className="text-sm font-semibold group-hover:text-primary transition-colors">{spu.name}</p>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">{spu.region}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{spu.size}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
+                                <div className={cn("h-full rounded-full", scoreBg(spu.score))} style={{ width: `${spu.score}%` }} />
+                              </div>
+                              <span className={cn("text-sm font-bold tabular-nums", scoreColor(spu.score))}>{spu.score}</span>
+                              <span className="text-xs text-muted-foreground">/100</span>
                             </div>
-                            <span className="text-[9px] tabular-nums text-muted-foreground w-6 text-right">{spu.kpis[k]}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-3 pt-3 border-t flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>{spu.submitted} submitted · {spu.approved} approved</span>
-                        <span className="flex items-center gap-1 text-primary font-medium group-hover:gap-2 transition-all">View <ChevronRight className="w-3 h-3" /></span>
-                      </div>
-                    </button>
-                  ))}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={cn("text-xs font-semibold flex items-center gap-0.5",
+                              spu.trend.startsWith("+") ? "text-green-600" : "text-red-500")}>
+                              {spu.trend.startsWith("+") ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                              {spu.trend}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-sm font-semibold text-blue-700 tabular-nums">{spu.submitted}</td>
+                          <td className="px-4 py-3.5 text-sm font-semibold text-green-700 tabular-nums">{spu.approved}</td>
+                          <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => setSelectedSpu(spu)}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                              View Details →
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 /* Selected university detail view */
@@ -426,7 +462,7 @@ export default function ACSDashboard() {
                         <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v) => [`${v}/100`, "Score"]} />
                         <Bar dataKey="score" radius={[6, 6, 0, 0]}>
                           {SPUS.filter((s) => s.size === selectedSpu.size).map((s, i) => (
-                            <rect key={i} fill={s.id === selectedSpu.id ? "#3b82f6" : "#cbd5e1"} />
+                            <Cell key={i} fill={s.id === selectedSpu.id ? "#3b82f6" : "#cbd5e1"} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -523,6 +559,7 @@ export default function ACSDashboard() {
                   </span>
                 </div>
 
+                {!dvSelectedKpi ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -533,83 +570,179 @@ export default function ACSDashboard() {
                         <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Progress</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Docs</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Due Date</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Actions</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {mockKpis
                         .filter((k) => k.tab === dvTab)
-                        .filter((k) =>
-                          !dvSearch.trim() ||
-                          k.title.toLowerCase().includes(dvSearch.toLowerCase()) ||
-                          String(k.kpiNumber).includes(dvSearch)
-                        )
-                        .map((kpi) => (
-                          <tr key={kpi._id} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
-                            <td className="px-4 py-3">
-                              <span className="inline-flex items-center justify-center w-9 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold">
-                                {kpi.kpiNumber}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 max-w-xs">
-                              <p className="text-sm font-medium leading-snug">{kpi.title}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{kpi.monthYear}</p>
-                            </td>
-                            <td className="px-4 py-3">
-                              <KpiStatusBadge status={kpi.status} />
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="h-1.5 w-20 bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className={cn("h-full rounded-full",
-                                      kpi.completionPercent === 100 ? "bg-green-500" :
-                                      kpi.completionPercent >= 60   ? "bg-primary"   : "bg-amber-400"
-                                    )}
-                                    style={{ width: `${kpi.completionPercent}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs text-muted-foreground tabular-nums">{kpi.completionPercent}%</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={cn("text-xs font-semibold tabular-nums",
-                                kpi.documentsUploaded < kpi.documentsRequired ? "text-amber-600" : "text-green-600"
+                        .filter((k) => dvStatusFilter === "all" || k.status === dvStatusFilter)
+                        .filter((k) => !dvSearch.trim() || k.title.toLowerCase().includes(dvSearch.toLowerCase()) || String(k.kpiNumber).includes(dvSearch))
+                        .map((kpi) => {
+                          const isAcsApproved = acsApproved.has(kpi._id);
+                          return (
+                            <tr key={kpi._id}
+                              onClick={() => setDvSelectedKpi(kpi._id)}
+                              className={cn("border-b last:border-0 hover:bg-muted/10 transition-colors cursor-pointer",
+                                kpi.status === "rejected" && "bg-red-50/40",
+                                kpi.status === "query_raised" && "bg-orange-50/40"
                               )}>
-                                {kpi.documentsUploaded}/{kpi.documentsRequired}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{kpi.dueDate}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => toast.info(`Viewing KPI ${kpi.kpiNumber} submission data`)}
-                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
-                                >
-                                  <Eye className="w-3.5 h-3.5" /> View
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center justify-center w-9 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold">{kpi.kpiNumber}</span>
+                              </td>
+                              <td className="px-4 py-3 max-w-xs">
+                                <p className="text-sm font-medium leading-snug">{kpi.title}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{kpi.monthYear}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                {isAcsApproved
+                                  ? <span className="flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2.5 py-0.5 rounded-full font-semibold w-fit"><CheckCircle2 className="w-3 h-3" />ACS Approved</span>
+                                  : <KpiStatusBadge status={kpi.status} />
+                                }
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-1.5 w-20 bg-muted rounded-full overflow-hidden">
+                                    <div className={cn("h-full rounded-full", kpi.completionPercent === 100 ? "bg-green-500" : kpi.completionPercent >= 60 ? "bg-primary" : "bg-amber-400")}
+                                      style={{ width: `${kpi.completionPercent}%` }} />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground tabular-nums">{kpi.completionPercent}%</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={cn("text-xs font-semibold tabular-nums", kpi.documentsUploaded < kpi.documentsRequired ? "text-amber-600" : "text-green-600")}>
+                                  {kpi.documentsUploaded}/{kpi.documentsRequired}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{kpi.dueDate}</td>
+                              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => setDvSelectedKpi(kpi._id)}
+                                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                                  Review →
                                 </button>
-                                <button
-                                  onClick={() => toast.info(`Viewing documents for KPI ${kpi.kpiNumber}`)}
-                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
-                                >
-                                  <FileText className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => toast.info(`Raising query for KPI ${kpi.kpiNumber}`)}
-                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium hover:bg-muted transition-colors text-orange-600 border-orange-200"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
+                ) : (
+                  /* ── KPI Summary + Approve view ── */
+                  (() => {
+                    const kpi = mockKpis.find((k) => k._id === dvSelectedKpi)!;
+                    const kpiCode = `KPI_${String(kpi.kpiNumber).padStart(2, "0")}`;
+                    const schema = getKpiSchema(kpiCode);
+                    const submission = getSubmission(kpiCode);
+                    const sortedSections = schema ? [...schema.sections].sort((a, b) => a.order - b.order) : [];
+                    const displayValues = submission?.values ?? {};
+                    const isAcsApproved = acsApproved.has(kpi._id);
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                          <button onClick={() => setDvSelectedKpi(null)}
+                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors">
+                            ← Back to KPI List
+                          </button>
+                          <div className="flex items-center gap-3">
+                            <KpiStatusBadge status={kpi.status} />
+                            {isAcsApproved
+                              ? <span className="flex items-center gap-1.5 text-sm font-semibold text-green-700 bg-green-100 px-3 py-1.5 rounded-xl">
+                                  <Check className="w-4 h-4 stroke-[3]" /> ACS Approved
+                                </span>
+                              : (
+                                <Button className="gap-2 bg-green-600 hover:bg-green-700"
+                                  onClick={() => { setAcsApproved((p) => new Set([...p, kpi._id])); toast.success(`KPI ${kpi.kpiNumber} approved by ACS!`); }}>
+                                  <CheckCircle2 className="w-4 h-4" /> Approve KPI
+                                </Button>
+                              )
+                            }
+                          </div>
+                        </div>
+
+                        {/* KPI info */}
+                        <div className="bg-white border rounded-2xl p-5">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">KPI {kpi.kpiNumber}</span>
+                                <span className="text-xs font-mono text-muted-foreground">{kpiCode}</span>
+                              </div>
+                              <h3 className="text-base font-bold">{kpi.title}</h3>
+                              <p className="text-sm text-muted-foreground mt-0.5">{kpi.monthYear} · Due {kpi.dueDate}</p>
+                            </div>
+                            <div className="text-right text-xs text-muted-foreground">
+                              <p>Progress: <span className="font-semibold text-foreground">{kpi.completionPercent}%</span></p>
+                              <p>Docs: <span className={cn("font-semibold", kpi.documentsUploaded < kpi.documentsRequired ? "text-amber-600" : "text-green-600")}>{kpi.documentsUploaded}/{kpi.documentsRequired}</span></p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section summaries */}
+                        {schema ? (
+                          sortedSections.map((section) => {
+                            const fields = schema.fields
+                              .filter((f) => f.section === section.id && isFieldVisible(f.dependsOn, displayValues))
+                              .sort((a, b) => a.order - b.order);
+                            return (
+                              <div key={section.id} className="bg-white border rounded-2xl overflow-hidden">
+                                <div className="px-5 py-3 bg-gradient-to-r from-primary/5 to-transparent border-b flex items-center gap-3">
+                                  <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">{section.order}</div>
+                                  <div>
+                                    <h4 className="text-sm font-bold">{section.title}</h4>
+                                    {section.description && <p className="text-xs text-muted-foreground">{section.description}</p>}
+                                  </div>
+                                  <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />
+                                </div>
+                                <div className="divide-y">
+                                  {fields.map((field) => {
+                                    const val = displayValues[field.fieldId];
+                                    const isEmpty = val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0);
+                                    return (
+                                      <div key={field.fieldId} className="grid grid-cols-[1fr_1.5fr] gap-4 px-5 py-3 hover:bg-muted/10">
+                                        <p className="text-xs font-medium text-muted-foreground">{field.label}{field.required && <span className="text-destructive ml-0.5">*</span>}</p>
+                                        <div className="flex items-center gap-2">
+                                          {isEmpty
+                                            ? <span className="text-xs text-muted-foreground/50 italic">Not filled</span>
+                                            : <span className={cn("text-sm font-medium", field.type === "calculated" ? "text-primary" : "text-foreground")}>{renderVal(val, field.type, field.options)}</span>
+                                          }
+                                          {field.type === "calculated" && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">auto</span>}
+                                          {field.type === "file" && !isEmpty && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5"><CheckCircle2 className="w-3 h-3" />uploaded</span>}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  {fields.length === 0 && <div className="px-5 py-4 text-xs text-muted-foreground italic">No fields in this section.</div>}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="bg-white border rounded-2xl p-10 flex flex-col items-center gap-3 text-muted-foreground">
+                            <FileText className="w-10 h-10 opacity-20" />
+                            <p className="text-sm font-medium">No schema available for this KPI</p>
+                          </div>
+                        )}
+
+                        {/* Approve button at bottom */}
+                        {!isAcsApproved && (
+                          <div className="flex justify-end pt-2">
+                            <Button size="lg" className="gap-2 bg-green-600 hover:bg-green-700 px-8"
+                              onClick={() => { setAcsApproved((p) => new Set([...p, kpi._id])); toast.success(`KPI ${kpi.kpiNumber} approved by ACS!`); setDvSelectedKpi(null); }}>
+                              <CheckCircle2 className="w-5 h-5" /> Approve & Close
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
               </div>
 
-              {/* Remarks panel */}
+              {/* Remarks + Query — only in list view */}
+              {!dvSelectedKpi && (<>
               <div className="bg-white border rounded-2xl p-5 space-y-4">
                 <div>
                   <h3 className="text-sm font-semibold">ACS Remarks per KPI</h3>
@@ -662,11 +795,9 @@ export default function ACSDashboard() {
                     ))}
                 </div>
               </div>
-
-              {/* Query composer */}
               <div className="bg-white border rounded-2xl p-5 space-y-4">
                 <div>
-                  <h3 className="text-sm font-semibold">Raise Query to University</h3>
+                  <h3 className="text-sm font-semibold">Raise Query to Coordinator</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Send a query or clarification request directly to the university coordinator</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -695,6 +826,7 @@ export default function ACSDashboard() {
                   <MessageSquare className="w-4 h-4" /> Raise Query
                 </Button>
               </div>
+              </>)}
             </div>
           )}
       </div>

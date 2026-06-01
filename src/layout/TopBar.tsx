@@ -24,7 +24,7 @@ const TopBar = ({ title, breadcrumbs = [] }: Props) => {
   const isDirector = user?.role?.type === "director";
 
   return (
-    <header className="h-14 border-b bg-white flex items-center px-6 gap-4 sticky top-0 z-30">
+    <header className="h-14 border-b bg-white flex items-center px-6 gap-4 sticky top-0 z-30 shrink-0">
       {/* Breadcrumb */}
       <div className="flex-1">
         <h1 className="text-base font-semibold text-foreground">{title}</h1>

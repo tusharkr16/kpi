@@ -8,10 +8,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, Upload, CheckCircle2, AlertTriangle, MessageSquare,
-  FileText, Save, Send, RefreshCw,
+  FileText, Save, Send, RefreshCw, ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { KpiStatus } from "@/app/kpi/types/kpi-types";
+import { useKpiSubmissionStore } from "@/store/kpi-submission-store";
+import { getKpiSchema } from "@/app/kpi-engine/schema/kpi-schemas";
+import { isFieldVisible } from "@/app/kpi-engine/engine/dependency-resolver";
 
 const steps = [
   { id: 1, label: "Fill Form" },
@@ -44,10 +47,21 @@ const mockQueryThread = {
   raisedAt: "June 12, 2025 · 8:30 AM",
 };
 
+const renderVal = (value: unknown, fieldType: string, options?: { label: string; value: string }[]): string => {
+  if (value === null || value === undefined || value === "") return "—";
+  if (Array.isArray(value)) return options ? value.map((v) => options.find((o) => o.value === v)?.label ?? v).join(", ") : value.join(", ");
+  if (typeof value === "object" && (value as { name?: string }).name) return `${(value as { name: string; size: string }).name} (${(value as { name: string; size: string }).size})`;
+  if (fieldType === "currency") return `₹ ${Number(value).toLocaleString("en-IN")}`;
+  if (fieldType === "percentage") return `${value}%`;
+  if (options) return options.find((o) => o.value === String(value))?.label ?? String(value);
+  return String(value);
+};
+
 const KpiDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const kpi = mockKpis.find((k) => k._id === id);
+  const { getSubmission } = useKpiSubmissionStore();
 
   const [formData, setFormData] = useState({
     title: kpi?.title ?? "",
@@ -74,6 +88,12 @@ const KpiDetail = () => {
 
   const currentStep = statusToStep[kpi.status];
   const balance = (Number(formData.sanctionedAmount) - Number(formData.expenditure)).toLocaleString("en-IN");
+
+  // Look up submitted form data from the kpi-engine submission store
+  const kpiCode = `KPI_${String(kpi.kpiNumber).padStart(2, "0")}`;
+  const submissionEntry = getSubmission(kpiCode);
+  const kpiSchema = getKpiSchema(kpiCode);
+  const sortedSections = kpiSchema ? [...kpiSchema.sections].sort((a, b) => a.order - b.order) : [];
 
   const handleSaveDraft = () => toast.success("Draft saved successfully");
   const handleSubmit = () => toast.success("KPI submitted for review");
@@ -208,105 +228,124 @@ const KpiDetail = () => {
 
         {/* Tab content */}
         {activeTab === "form" && (
-          <div className="bg-white rounded-xl border p-6 space-y-6">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Basic Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="md:col-span-2 space-y-1.5">
-                <label className="text-sm font-medium">KPI Title <span className="text-destructive">*</span></label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
+          submissionEntry && kpiSchema ? (
+            /* ── Submitted form data from kpi-engine ─── */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Submitted Data</h3>
+                  <span className="text-xs text-muted-foreground">Period: {submissionEntry.period}</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Submitted {new Date(submissionEntry.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
               </div>
-            </div>
 
-            <div className="border-t pt-5">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">Financial Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Sanctioned Amount (₹) <span className="text-destructive">*</span></label>
-                  <input
-                    type="number"
-                    value={formData.sanctionedAmount}
-                    onChange={(e) => setFormData((p) => ({ ...p, sanctionedAmount: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Expenditure (₹) <span className="text-destructive">*</span></label>
-                  <input
-                    type="number"
-                    value={formData.expenditure}
-                    onChange={(e) => setFormData((p) => ({ ...p, expenditure: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Balance (₹)</label>
-                  <div className="w-full border rounded-lg px-3 py-2 text-sm bg-muted/30 text-muted-foreground tabular-nums">
-                    ₹{balance}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t pt-5">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">Completion</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Completion % <span className="text-destructive">*</span></label>
-                  <div className="space-y-2">
-                    <input
-                      type="range"
-                      min={0} max={100}
-                      value={formData.completionPercent}
-                      onChange={(e) => setFormData((p) => ({ ...p, completionPercent: e.target.value }))}
-                      className="w-full accent-primary"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>0%</span>
-                      <span className="font-semibold text-primary text-sm">{formData.completionPercent}%</span>
-                      <span>100%</span>
+              {sortedSections.map((section) => {
+                const fields = kpiSchema.fields
+                  .filter((f) => f.section === section.id && isFieldVisible(f.dependsOn, submissionEntry.values))
+                  .sort((a, b) => a.order - b.order);
+                return (
+                  <div key={section.id} className="bg-white border rounded-2xl overflow-hidden">
+                    <div className="px-5 py-3 bg-gradient-to-r from-primary/5 to-transparent border-b flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        {section.order}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold">{section.title}</h4>
+                        {section.description && <p className="text-xs text-muted-foreground">{section.description}</p>}
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />
+                    </div>
+                    <div className="divide-y">
+                      {fields.map((field) => {
+                        const val = submissionEntry.values[field.fieldId];
+                        const isEmpty = val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0);
+                        return (
+                          <div key={field.fieldId} className="grid grid-cols-[1fr_1.5fr] gap-4 px-5 py-3 hover:bg-muted/10">
+                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                              {field.label}
+                              {field.required && <span className="text-destructive">*</span>}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              {isEmpty
+                                ? <span className="text-xs text-muted-foreground/50 italic">Not filled</span>
+                                : <span className={cn("text-sm font-medium", field.type === "calculated" ? "text-primary" : "text-foreground")}>
+                                    {renderVal(val, field.type, field.options)}
+                                  </span>
+                              }
+                              {field.type === "calculated" && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">auto</span>}
+                              {field.type === "file" && !isEmpty && (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
+                                  <CheckCircle2 className="w-3 h-3" /> uploaded
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {fields.length === 0 && <div className="px-5 py-4 text-xs text-muted-foreground italic">No fields in this section.</div>}
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* ── Generic form for non-engine KPIs ─── */
+            <div className="bg-white rounded-xl border p-6 space-y-6">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="text-sm font-medium">KPI Title <span className="text-destructive">*</span></label>
+                  <input type="text" value={formData.title}
+                    onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                </div>
+              </div>
+              <div className="border-t pt-5">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">Financial Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Sanctioned Amount (₹) <span className="text-destructive">*</span></label>
+                    <input type="number" value={formData.sanctionedAmount}
+                      onChange={(e) => setFormData((p) => ({ ...p, sanctionedAmount: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="0" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Expenditure (₹) <span className="text-destructive">*</span></label>
+                    <input type="number" value={formData.expenditure}
+                      onChange={(e) => setFormData((p) => ({ ...p, expenditure: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="0" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Balance (₹)</label>
+                    <div className="w-full border rounded-lg px-3 py-2 text-sm bg-muted/30 text-muted-foreground tabular-nums">₹{balance}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t pt-5">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">Remarks</h3>
+                <textarea rows={3} value={formData.remarks}
+                  onChange={(e) => setFormData((p) => ({ ...p, remarks: e.target.value }))}
+                  placeholder="Add any remarks or notes..."
+                  className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none" />
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t">
+                <p className="text-xs text-muted-foreground">Auto-saved</p>
+                <div className="flex gap-3">
+                  <Button variant="outline" size="sm" onClick={handleSaveDraft} className="gap-2">
+                    <Save className="w-4 h-4" /> Save Draft
+                  </Button>
+                  {kpi.status === "rejected" ? (
+                    <Button size="sm" onClick={handleResubmit} className="gap-2"><RefreshCw className="w-4 h-4" /> Resubmit</Button>
+                  ) : kpi.status !== "approved" && kpi.status !== "submitted" ? (
+                    <Button size="sm" onClick={handleSubmit} className="gap-2"><Send className="w-4 h-4" /> Submit for Review</Button>
+                  ) : null}
                 </div>
               </div>
             </div>
-
-            <div className="border-t pt-5">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">Remarks</h3>
-              <textarea
-                rows={3}
-                value={formData.remarks}
-                onChange={(e) => setFormData((p) => ({ ...p, remarks: e.target.value }))}
-                placeholder="Add any remarks or notes..."
-                className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t">
-              <p className="text-xs text-muted-foreground">Auto-saved</p>
-              <div className="flex gap-3">
-                <Button variant="outline" size="sm" onClick={handleSaveDraft} className="gap-2">
-                  <Save className="w-4 h-4" /> Save Draft
-                </Button>
-                {kpi.status === "rejected" ? (
-                  <Button size="sm" onClick={handleResubmit} className="gap-2">
-                    <RefreshCw className="w-4 h-4" /> Resubmit
-                  </Button>
-                ) : kpi.status !== "approved" && kpi.status !== "submitted" ? (
-                  <Button size="sm" onClick={handleSubmit} className="gap-2">
-                    <Send className="w-4 h-4" /> Submit for Review
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          </div>
+          )
         )}
 
         {activeTab === "documents" && (

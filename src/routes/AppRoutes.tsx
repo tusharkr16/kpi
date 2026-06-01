@@ -40,7 +40,7 @@ const AppRoutes = () => {
     <Suspense fallback={<Loader />}>
       <Routes>
         <Route path="/" element={<AppLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to={isVC ? "/dashboard?section=executive" : isACS ? "/dashboard?section=state" : "/dashboard"} replace />} />
           <Route path="dashboard" element={isVC ? <VCDashboard /> : isACS ? <ACSDashboard /> : <DashboardOverview />} />
           <Route path="kpis" element={<KpiList />} />
           <Route path="kpis/new" element={<KpiSelectPage />} />
