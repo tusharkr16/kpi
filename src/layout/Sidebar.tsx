@@ -43,7 +43,6 @@ const Sidebar = () => {
   const navigate   = useNavigate();
   const location   = useLocation();
   const [searchParams] = useSearchParams();
-  const isDirector = user?.role?.type === "director";
   const isVC       = user?.role?.type === "vc";
   const isACS      = user?.role?.type === "acs";
   const isOnDashboard     = location.pathname === "/dashboard";
@@ -90,8 +89,8 @@ const Sidebar = () => {
           </button>
         ))}
 
-        {/* New Submission — director only */}
-        {!isACS && !isVC && isDirector && (
+        {/* New Submission — coordinator & director */}
+        {!isACS && !isVC && (
           <button
             onClick={() => navigate("/kpis/new")}
             className={cn(

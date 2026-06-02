@@ -11,27 +11,10 @@ import {
   FileText, Save, Send, RefreshCw, ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { KpiStatus } from "@/app/kpi/types/kpi-types";
 import { useKpiSubmissionStore } from "@/store/kpi-submission-store";
 import { getKpiSchema } from "@/app/kpi-engine/schema/kpi-schemas";
 import { isFieldVisible } from "@/app/kpi-engine/engine/dependency-resolver";
 
-const steps = [
-  { id: 1, label: "Fill Form" },
-  { id: 2, label: "Attach Docs" },
-  { id: 3, label: "Submit" },
-  { id: 4, label: "Review" },
-  { id: 5, label: "Approved" },
-];
-
-const statusToStep: Record<KpiStatus, number> = {
-  not_started: 1,
-  draft: 2,
-  submitted: 4,
-  query_raised: 4,
-  rejected: 3,
-  approved: 5,
-};
 
 const mockDocuments = [
   { id: "doc1", name: "Work Order Certificate", required: true, uploaded: true, fileName: "work_order_cert.pdf" },
@@ -86,7 +69,6 @@ const KpiDetail = () => {
     );
   }
 
-  const currentStep = statusToStep[kpi.status];
   const balance = (Number(formData.sanctionedAmount) - Number(formData.expenditure)).toLocaleString("en-IN");
 
   // Look up submitted form data from the kpi-engine submission store
@@ -163,42 +145,6 @@ const KpiDetail = () => {
             </div>
           </div>
         )}
-
-        {/* Stepper */}
-        <div className="bg-white rounded-xl border p-5">
-          <div className="flex items-center">
-            {steps.map((step, idx) => {
-              const done = step.id < currentStep;
-              const active = step.id === currentStep;
-              return (
-                <div key={step.id} className="flex items-center flex-1 last:flex-none">
-                  <div className="flex flex-col items-center">
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all",
-                      done ? "bg-green-500 border-green-500 text-white" :
-                      active ? "bg-primary border-primary text-white" :
-                      "bg-white border-muted-foreground/30 text-muted-foreground"
-                    )}>
-                      {done ? <CheckCircle2 className="w-4 h-4" /> : step.id}
-                    </div>
-                    <p className={cn(
-                      "text-[10px] mt-1 font-medium",
-                      active ? "text-primary" : done ? "text-green-600" : "text-muted-foreground"
-                    )}>
-                      {step.label}
-                    </p>
-                  </div>
-                  {idx < steps.length - 1 && (
-                    <div className={cn(
-                      "flex-1 h-0.5 mx-2 mt-[-12px]",
-                      done ? "bg-green-400" : "bg-muted"
-                    )} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-muted/40 p-1 rounded-lg w-fit">

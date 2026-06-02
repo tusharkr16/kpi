@@ -16,6 +16,8 @@ const config: Record<KpiCategory, { label: string; className: string }> = {
   infrastructure: { label: "Infrastructure", className: "bg-slate-50 text-slate-700 border border-slate-200" },
   ai_systems: { label: "AI Systems", className: "bg-emerald-50 text-emerald-700 border border-emerald-200" },
   alumni: { label: "Alumni", className: "bg-amber-50 text-amber-700 border border-amber-200" },
+  learning_resources: { label: "Teaching Learning & Resources", className: "bg-blue-50 text-blue-700 border border-blue-200" },
+  outreach_inclusivity: { label: "Outreach & Inclusivity", className: "bg-orange-50 text-orange-700 border border-orange-200" },
 };
 
 const KpiCategoryBadge = ({ category }: { category: KpiCategory }) => {

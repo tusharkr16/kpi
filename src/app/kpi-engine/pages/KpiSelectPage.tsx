@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopBar from "@/layout/TopBar";
 import { getKpiSchema } from "../schema/kpi-schemas";
-import { Search, BookOpen, FlaskConical, GraduationCap, ArrowRight, ClipboardList } from "lucide-react";
+import { Search, BookOpen, FlaskConical, GraduationCap, ArrowRight, ClipboardList, Users, HeartHandshake, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
@@ -42,6 +42,62 @@ const KPI_LIST = [
     icon: GraduationCap,
     gradient: "from-emerald-500 to-emerald-600",
     bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500",
+  },
+  // ── Learning & Resources ───────────────────────────────────────
+  {
+    code: "KPI_08", number: 8,
+    title: "Skill Course Integration (UGC Guidelines)",
+    subtitle: "Track UGC-guideline skill courses, enrolment, and industry certifications",
+    tab: "Teaching Learning & Resources",
+    icon: BookOpen,
+    gradient: "from-blue-500 to-blue-600",
+    bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500",
+  },
+  {
+    code: "KPI_11", number: 11,
+    title: "Train at Least 25% Faculty on Emerging Technologies",
+    subtitle: "Track faculty training coverage on AI/ML, Cloud, and other emerging tech",
+    tab: "Teaching Learning & Resources",
+    icon: BookOpen,
+    gradient: "from-blue-500 to-blue-600",
+    bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500",
+  },
+  {
+    code: "KPI_14", number: 14,
+    title: "Ensure >25% Students Enrolled in Skill Courses",
+    subtitle: "Simplified tracking to verify ≥25% skill course enrolment target is met",
+    tab: "Teaching Learning & Resources",
+    icon: BookOpen,
+    gradient: "from-blue-500 to-blue-600",
+    bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500",
+  },
+  // ── Outreach & Inclusivity ─────────────────────────────────────
+  {
+    code: "KPI_16", number: 16,
+    title: "Increase International Students by 20%",
+    subtitle: "Track 20% year-on-year growth of international student enrolments",
+    tab: "Outreach & Inclusivity",
+    icon: Users,
+    gradient: "from-orange-500 to-orange-600",
+    bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500",
+  },
+  {
+    code: "KPI_21", number: 21,
+    title: "Alumni Engagement & Endowment Development – Refined",
+    subtitle: "Track alumni database coverage, donations, mentorship, and endowment growth",
+    tab: "Outreach & Inclusivity",
+    icon: HeartHandshake,
+    gradient: "from-orange-500 to-orange-600",
+    bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500",
+  },
+  {
+    code: "KPI_26", number: 26,
+    title: "Student Mental Health & Well-being (AI-enabled)",
+    subtitle: "AI screening, counselling infrastructure, and student well-being outcomes",
+    tab: "Outreach & Inclusivity",
+    icon: Brain,
+    gradient: "from-orange-500 to-orange-600",
+    bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500",
   },
 ];
 

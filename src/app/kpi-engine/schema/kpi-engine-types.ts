@@ -26,7 +26,9 @@ export type KpiCategory =
   | "research"
   | "infrastructure"
   | "ai_systems"
-  | "alumni";
+  | "alumni"
+  | "learning_resources"
+  | "outreach_inclusivity";
 
 export type KpiStatus =
   | "not_started"
