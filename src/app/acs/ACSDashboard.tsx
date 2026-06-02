@@ -11,7 +11,7 @@ import {
 import {
   BarChart3, Search, TrendingUp, TrendingDown,
   Building2, AlertTriangle, CheckCircle2,
-  Filter, ArrowUpDown, FileText, MessageSquare, Eye,
+  Filter, ArrowUpDown, FileText, MessageSquare, Eye, Send,
   BookOpen, FlaskConical, GraduationCap, Users, Landmark, ScrollText, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ const TREND_DATA = [
 const REGIONS = ["All", "Pune", "Mumbai", "Marathwada", "Vidarbha", "Konkan", "North MH"];
 const SIZES   = ["All", "Large", "Medium", "Small"];
 
-type Section = "state" | "drilldown" | "dataviewer";
+type Section = "state" | "drilldown" | "dataviewer" | "queries";
 
 const TAB_META: { key: KpiTab; label: string; icon: React.ElementType; color: string }[] = [
   { key: "teaching",    label: "Teaching & Learning",           icon: BookOpen,      color: "text-blue-600"   },
@@ -82,6 +82,57 @@ export default function ACSDashboard() {
   const [search, setSearch]           = useState("");
   const [selectedSpu, setSelectedSpu] = useState<typeof SPUS[0] | null>(null);
   const [sortBy, setSortBy]           = useState<"score" | "name">("score");
+
+  // Queries state
+  type AcsThread = {
+    _id: string; university: string; vcName: string; subject: string;
+    status: "open" | "resolved"; priority: "high" | "medium" | "low";
+    createdAt: string;
+    messages: { _id: string; sender: string; role: "acs" | "vc"; text: string; sentAt: string }[];
+  };
+  const [acsThreads, setAcsThreads] = useState<AcsThread[]>([
+    {
+      _id: "aq1",
+      university: "Solapur University",
+      vcName: "Dr. Ramesh Kulkarni",
+      subject: "KPI 3 — Mission Mode Faculty Recruitment",
+      status: "open" as const,
+      priority: "high" as const,
+      createdAt: "2025-06-10T09:00:00Z",
+      messages: [
+        { _id: "am1", sender: "ACS Office", role: "acs" as const, text: "Please clarify the recruitment status for the 38 advertised positions. The submitted data shows only 32 joined — kindly provide the reason for the 6 declines and whether re-advertisement is planned.", sentAt: "2025-06-10T09:00:00Z" },
+        { _id: "am2", sender: "Dr. Ramesh Kulkarni (VC)", role: "vc" as const, text: "6 candidates declined due to lower pay scale compared to private sector. We are re-advertising 4 positions. 2 positions are being absorbed by contract extension.", sentAt: "2025-06-11T11:30:00Z" },
+      ],
+    },
+    {
+      _id: "aq2",
+      university: "Nagpur University",
+      vcName: "Dr. Priya Deshpande",
+      subject: "KPI 16 — International Student Enrolment",
+      status: "open" as const,
+      priority: "medium" as const,
+      createdAt: "2025-06-08T14:00:00Z",
+      messages: [
+        { _id: "am3", sender: "ACS Office", role: "acs" as const, text: "Your international student count shows 20% growth but the SII portal data reflects only 12%. Please reconcile the discrepancy and re-upload verified enrolment data.", sentAt: "2025-06-08T14:00:00Z" },
+      ],
+    },
+    {
+      _id: "aq3",
+      university: "Pune University",
+      vcName: "Dr. Anjali Mehta",
+      subject: "KPI 8 — Skill Course Integration",
+      status: "resolved" as const,
+      priority: "low" as const,
+      createdAt: "2025-06-02T10:00:00Z",
+      messages: [
+        { _id: "am5", sender: "ACS Office", role: "acs" as const, text: "Please submit the Academic Council approval minutes for the 5 new skill courses added this semester.", sentAt: "2025-06-02T10:00:00Z" },
+        { _id: "am6", sender: "Dr. Anjali Mehta (VC)", role: "vc" as const, text: "AC minutes uploaded. All 5 courses approved in the April 2025 council meeting.", sentAt: "2025-06-03T09:00:00Z" },
+        { _id: "am7", sender: "ACS Office", role: "acs" as const, text: "Documents verified. Query resolved. Thank you.", sentAt: "2025-06-04T10:00:00Z" },
+      ],
+    },
+  ]);
+  const [selectedAcsThread, setSelectedAcsThread] = useState("aq1");
+  const [acsReplyText, setAcsReplyText] = useState("");
 
   // Data Viewer state
   const [dvUniversity, setDvUniversity]   = useState(SPUS[0].id);
@@ -829,6 +880,182 @@ export default function ACSDashboard() {
               </>)}
             </div>
           )}
+
+          {/* ── Queries Section ─────────────────────────────────────── */}
+          {active === "queries" && (() => {
+            const thread = acsThreads.find((t) => t._id === selectedAcsThread)!;
+            const statusCfg = {
+              open:     { label: "Open",     className: "text-orange-600 bg-orange-50 border-orange-200" },
+              resolved: { label: "Resolved", className: "text-green-600 bg-green-50 border-green-200" },
+            };
+            const priorityCfg = {
+              high:   "bg-red-100 text-red-700",
+              medium: "bg-amber-100 text-amber-700",
+              low:    "bg-gray-100 text-gray-600",
+            };
+            const formatTime = (iso: string) => {
+              const d = new Date(iso);
+              return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) +
+                " · " + d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+            };
+            const handleSend = () => {
+              if (!acsReplyText.trim()) return toast.error("Please enter a message");
+              setAcsThreads((prev) => prev.map((t) => t._id === selectedAcsThread ? {
+                ...t,
+                messages: [...t.messages, {
+                  _id: `am-${Date.now()}`,
+                  sender: "ACS Office",
+                  role: "acs" as const,
+                  text: acsReplyText,
+                  sentAt: new Date().toISOString(),
+                }],
+              } : t));
+              setAcsReplyText("");
+              toast.success("Message sent to VC");
+            };
+
+            return (
+              <div className="flex overflow-hidden rounded-2xl border bg-white shadow-sm" style={{ height: "calc(100vh - 160px)" }}>
+
+                {/* Left — thread list */}
+                <div className="w-80 shrink-0 border-r flex flex-col overflow-hidden">
+                  <div className="px-4 py-4 border-b">
+                    <h3 className="text-sm font-bold">University Conversations</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {acsThreads.filter((t) => t.status === "open").length} open · {acsThreads.filter((t) => t.status === "resolved").length} resolved
+                    </p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto divide-y">
+                    {acsThreads.map((t) => (
+                      <button
+                        key={t._id}
+                        onClick={() => setSelectedAcsThread(t._id)}
+                        className={cn(
+                          "w-full text-left px-4 py-4 hover:bg-muted/30 transition-colors",
+                          selectedAcsThread === t._id && "bg-primary/5 border-l-2 border-l-primary"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="text-xs font-bold text-foreground">{t.university}</p>
+                          <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0", priorityCfg[t.priority])}>
+                            {t.priority}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">{t.vcName}</p>
+                        <p className="text-xs font-medium line-clamp-1 text-foreground/80">{t.subject}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[10px] text-muted-foreground">{t.messages.length} messages</span>
+                          <span className={cn(
+                            "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                            statusCfg[t.status].className
+                          )}>
+                            {statusCfg[t.status].label}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* New query button */}
+                  <div className="p-3 border-t">
+                    <button
+                      onClick={() => toast.info("New conversation dialog would open")}
+                      className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-primary border border-dashed border-primary/40 rounded-lg py-2 hover:bg-primary/5 transition-colors"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> New Conversation
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right — chat */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Chat header */}
+                  <div className="bg-white border-b px-6 py-4 flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-sm">{thread.university}</p>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <p className="text-xs text-muted-foreground">{thread.vcName}</p>
+                        <span className={cn(
+                          "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                          statusCfg[thread.status].className
+                        )}>
+                          {statusCfg[thread.status].label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{thread.subject}</p>
+                    </div>
+                    {thread.status === "open" && (
+                      <button
+                        onClick={() => {
+                          setAcsThreads((prev) => prev.map((t) => t._id === selectedAcsThread ? { ...t, status: "resolved" as const } : t));
+                          toast.success("Query marked as resolved");
+                        }}
+                        className="text-xs font-semibold text-green-600 border border-green-300 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Mark Resolved
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 bg-muted/10">
+                    {thread.messages.map((msg) => {
+                      const isAcs = msg.role === "acs";
+                      return (
+                        <div key={msg._id} className={cn("flex gap-3", isAcs && "flex-row-reverse")}>
+                          <div className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold",
+                            isAcs ? "bg-primary/10 text-primary" : "bg-violet-100 text-violet-700"
+                          )}>
+                            {isAcs ? "ACS" : "VC"}
+                          </div>
+                          <div className={cn("max-w-[72%]", isAcs && "items-end flex flex-col")}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-xs font-semibold">{msg.sender}</p>
+                              <p className="text-xs text-muted-foreground">{formatTime(msg.sentAt)}</p>
+                            </div>
+                            <div className={cn(
+                              "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                              isAcs
+                                ? "bg-primary text-white rounded-tr-none"
+                                : "bg-white border shadow-sm rounded-tl-none"
+                            )}>
+                              {msg.text}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Reply box */}
+                  {thread.status === "open" ? (
+                    <div className="bg-white border-t p-4 space-y-3">
+                      <textarea
+                        rows={3}
+                        value={acsReplyText}
+                        onChange={(e) => setAcsReplyText(e.target.value)}
+                        placeholder={`Reply to ${thread.vcName}...`}
+                        className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                      />
+                      <div className="flex items-center justify-end">
+                        <Button size="sm" className="gap-2" onClick={handleSend}>
+                          <Send className="w-4 h-4" /> Send Message
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-green-50 border-t border-green-200 px-6 py-3 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <p className="text-sm text-green-700 font-medium">This conversation has been resolved.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
       </div>
     </div>
   );

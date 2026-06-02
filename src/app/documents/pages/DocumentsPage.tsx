@@ -11,14 +11,34 @@ import { toast } from "sonner";
 
 const statusConfig = {
   accepted: { label: "Accepted", icon: CheckCircle2, className: "text-green-600 bg-green-50 border-green-200" },
-  rejected: { label: "Rejected", icon: XCircle, className: "text-red-600 bg-red-50 border-red-200" },
-  pending: { label: "Pending", icon: Clock, className: "text-amber-600 bg-amber-50 border-amber-200" },
+  rejected: { label: "Rejected", icon: XCircle,      className: "text-red-600 bg-red-50 border-red-200" },
+  pending:  { label: "Pending",  icon: Clock,         className: "text-amber-600 bg-amber-50 border-amber-200" },
 };
 
+const CATEGORY_OPTIONS: { value: KpiCategory | "all"; label: string }[] = [
+  { value: "all",                 label: "All Categories" },
+  { value: "talent_acquisition",  label: "Talent Acquisition" },
+  { value: "industry_partnership",label: "Industry Partnership" },
+  { value: "digital_transformation", label: "Digital Transformation" },
+  { value: "faculty_development", label: "Faculty Development" },
+  { value: "enrollment_access",   label: "Enrollment & Access" },
+  { value: "innovation_ecosystem",label: "Innovation Ecosystem" },
+  { value: "research",            label: "Research" },
+  { value: "governance_reform",   label: "Governance Reform" },
+  { value: "international",       label: "International" },
+  { value: "student_welfare",     label: "Student Welfare" },
+  { value: "specialized_programs",label: "Specialized Programs" },
+  { value: "infrastructure",      label: "Infrastructure" },
+  { value: "ai_systems",          label: "AI Systems" },
+  { value: "alumni",              label: "Alumni" },
+  { value: "learning_resources",  label: "Teaching Learning & Resources" },
+  { value: "outreach_inclusivity",label: "Outreach & Inclusivity" },
+];
+
 const DocumentsPage = () => {
-  const [search, setSearch] = useState("");
+  const [search,         setSearch]         = useState("");
   const [categoryFilter, setCategoryFilter] = useState<KpiCategory | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<IDocument["status"] | "all">("all");
+  const [statusFilter,   setStatusFilter]   = useState<IDocument["status"] | "all">("all");
 
   const filtered = useMemo(() => {
     return mockDocuments.filter((d) => {
@@ -26,17 +46,17 @@ const DocumentsPage = () => {
         d.name.toLowerCase().includes(search.toLowerCase()) ||
         d.kpiTitle.toLowerCase().includes(search.toLowerCase()) ||
         d.tags.some((t) => t.includes(search.toLowerCase()));
-      const matchCat = categoryFilter === "all" || d.category === categoryFilter;
-      const matchStatus = statusFilter === "all" || d.status === statusFilter;
+      const matchCat    = categoryFilter === "all" || d.category === categoryFilter;
+      const matchStatus = statusFilter   === "all" || d.status   === statusFilter;
       return matchSearch && matchCat && matchStatus;
     });
   }, [search, categoryFilter, statusFilter]);
 
   const counts = {
-    total: mockDocuments.length,
+    total:    mockDocuments.length,
     accepted: mockDocuments.filter((d) => d.status === "accepted").length,
     rejected: mockDocuments.filter((d) => d.status === "rejected").length,
-    pending: mockDocuments.filter((d) => d.status === "pending").length,
+    pending:  mockDocuments.filter((d) => d.status === "pending").length,
   };
 
   return (
@@ -45,13 +65,13 @@ const DocumentsPage = () => {
 
       <div className="p-6 space-y-5">
 
-        {/* Summary */}
+        {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total Documents", value: counts.total, color: "text-primary", bg: "bg-primary/5" },
-            { label: "Accepted", value: counts.accepted, color: "text-green-600", bg: "bg-green-50" },
-            { label: "Rejected", value: counts.rejected, color: "text-red-600", bg: "bg-red-50" },
-            { label: "Pending Review", value: counts.pending, color: "text-amber-600", bg: "bg-amber-50" },
+            { label: "Total Documents", value: counts.total,    color: "text-primary",    bg: "bg-primary/5"  },
+            { label: "Accepted",        value: counts.accepted, color: "text-green-600",  bg: "bg-green-50"   },
+            { label: "Rejected",        value: counts.rejected, color: "text-red-600",    bg: "bg-red-50"     },
+            { label: "Pending Review",  value: counts.pending,  color: "text-amber-600",  bg: "bg-amber-50"   },
           ].map(({ label, value, color, bg }) => (
             <div key={label} className={cn("rounded-xl border p-4 flex items-center gap-3", bg)}>
               <p className={cn("text-2xl font-bold tabular-nums", color)}>{value}</p>
@@ -77,11 +97,9 @@ const DocumentsPage = () => {
             onChange={(e) => setCategoryFilter(e.target.value as KpiCategory | "all")}
             className="text-sm border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 bg-white"
           >
-            <option value="all">All Categories</option>
-            <option value="construction">Construction</option>
-            <option value="equipment">Equipment</option>
-            <option value="soft">Soft</option>
-            <option value="renovation">Renovation</option>
+            {CATEGORY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </select>
           <select
             value={statusFilter}
@@ -98,90 +116,137 @@ const DocumentsPage = () => {
           </Button>
         </div>
 
-        {/* Document grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((doc) => {
-            const sc = statusConfig[doc.status];
-            const StatusIcon = sc.icon;
-            return (
-              <div
-                key={doc._id}
-                className={cn("bg-white rounded-xl border overflow-hidden hover:shadow-sm transition-shadow", doc.status === "rejected" && "border-red-200")}
-              >
-                {/* Top strip */}
-                <div className={cn("flex items-center justify-between px-4 py-2 border-b text-xs font-medium border", sc.className)}>
-                  <div className="flex items-center gap-1.5">
-                    <StatusIcon className="w-3.5 h-3.5" />
-                    {sc.label}
-                  </div>
-                  <span className="text-muted-foreground font-normal">v{doc.version}</span>
-                </div>
+        {/* Documents table */}
+        <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
+          {filtered.length === 0 ? (
+            <div className="p-16 text-center">
+              <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="font-medium">No documents found</p>
+              <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/20">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground">Document</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">KPI</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Category</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Uploaded</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Size</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Tags</th>
+                    <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((doc) => {
+                    const sc = statusConfig[doc.status];
+                    const StatusIcon = sc.icon;
+                    return (
+                      <tr
+                        key={doc._id}
+                        className={cn(
+                          "border-b last:border-0 hover:bg-muted/10 transition-colors",
+                          doc.status === "rejected" && "bg-red-50/30",
+                        )}
+                      >
+                        {/* Document name + file */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate max-w-[180px]">{doc.name}</p>
+                              <p className="text-xs text-muted-foreground truncate max-w-[180px]">{doc.fileName}</p>
+                            </div>
+                          </div>
+                        </td>
 
-                {/* Body */}
-                <div className="p-4 space-y-3">
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <FileText className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground">{doc.fileName} · {doc.fileSize}</p>
-                    </div>
-                  </div>
+                        {/* KPI title */}
+                        <td className="px-4 py-3.5">
+                          <p className="text-xs text-foreground max-w-[160px] truncate">{doc.kpiTitle}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">v{doc.version}</p>
+                        </td>
 
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">KPI</span>
-                      <span className="font-medium truncate max-w-[160px] text-right">{doc.kpiTitle}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Category</span>
-                      <KpiCategoryBadge category={doc.category} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Uploaded</span>
-                      <span>{new Date(doc.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
-                    </div>
-                  </div>
+                        {/* Category */}
+                        <td className="px-4 py-3.5">
+                          <KpiCategoryBadge category={doc.category} />
+                        </td>
 
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1">
-                    {doc.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
+                        {/* Status */}
+                        <td className="px-4 py-3.5">
+                          <span className={cn(
+                            "inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border",
+                            sc.className
+                          )}>
+                            <StatusIcon className="w-3 h-3" />
+                            {sc.label}
+                          </span>
+                        </td>
 
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-1 border-t">
-                    <Button variant="outline" size="sm" className="flex-1 gap-1.5 text-xs" onClick={() => toast.info("Preview")}>
-                      <Eye className="w-3.5 h-3.5" /> Preview
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1 gap-1.5 text-xs" onClick={() => toast.info("Download")}>
-                      <Download className="w-3.5 h-3.5" /> Download
-                    </Button>
-                    {doc.status === "rejected" && (
-                      <Button size="sm" className="flex-1 gap-1.5 text-xs" onClick={() => toast.success("Re-upload triggered")}>
-                        <RefreshCw className="w-3.5 h-3.5" /> Re-upload
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                        {/* Uploaded date */}
+                        <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(doc.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </td>
+
+                        {/* File size */}
+                        <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
+                          {doc.fileSize}
+                        </td>
+
+                        {/* Tags */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex flex-wrap gap-1">
+                            {doc.tags.map((tag) => (
+                              <span key={tag} className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => toast.info("Preview")}
+                              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              title="Preview"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => toast.info("Download")}
+                              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              title="Download"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                            {doc.status === "rejected" && (
+                              <button
+                                onClick={() => toast.success("Re-upload triggered")}
+                                className="flex items-center gap-1 text-[10px] font-semibold text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                                title="Re-upload"
+                              >
+                                <RefreshCw className="w-3 h-3" /> Re-upload
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {filtered.length === 0 && (
-          <div className="bg-white rounded-xl border p-16 text-center">
-            <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="font-medium">No documents found</p>
-            <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters.</p>
-          </div>
-        )}
-
-        <p className="text-xs text-muted-foreground text-right">Showing {filtered.length} of {mockDocuments.length} documents</p>
+        <p className="text-xs text-muted-foreground text-right">
+          Showing {filtered.length} of {mockDocuments.length} documents
+        </p>
       </div>
     </div>
   );

@@ -36,6 +36,7 @@ const ACS_SECTIONS = [
   { key: "state",      label: "State-Level Dashboard", icon: BarChart3    },
   { key: "drilldown",  label: "University Drilldown",  icon: Building2    },
   { key: "dataviewer", label: "Data Viewer",           icon: ClipboardList },
+  { key: "queries",    label: "Queries",               icon: MessageSquare },
 ];
 
 const Sidebar = () => {
@@ -51,24 +52,14 @@ const Sidebar = () => {
 
   return (
     <aside className="h-full w-60 bg-white border-r flex flex-col z-40 shrink-0 overflow-hidden">
-      {/* Logo */}
-      <div className="px-5 py-4 border-b">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <BarChart3 className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-primary leading-tight">KPI Monitoring</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">KPI Dashboard</p>
-          </div>
-        </div>
-      </div>
 
-      {/* University info */}
-      <div className="px-5 py-3 border-b bg-muted/30">
-        <p className="text-xs text-muted-foreground">University</p>
-        <p className="text-sm font-medium truncate">{user?.universityName}</p>
-      </div>
+      {/* University info — hidden for ACS (state-level role, not university-specific) */}
+      {!isACS && (
+        <div className="px-5 py-3 border-b bg-muted/30">
+          <p className="text-xs text-muted-foreground">University</p>
+          <p className="text-sm font-medium truncate">{user?.universityName}</p>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -86,6 +77,11 @@ const Sidebar = () => {
           >
             <Icon className="w-4 h-4 shrink-0" />
             <span className="flex-1 text-left">{label}</span>
+            {key === "queries" && (
+              <span className="text-[10px] bg-orange-500 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                2
+              </span>
+            )}
           </button>
         ))}
 
