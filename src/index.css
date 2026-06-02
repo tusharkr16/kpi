@@ -10,6 +10,7 @@ html body[data-scroll-locked] {
   margin-right: 0 !important;
 }
 
+
 .table-container {
   width: 100%;
   overflow-x: auto;
